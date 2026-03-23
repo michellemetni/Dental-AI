@@ -1,6 +1,6 @@
 from PIL import Image
 import torch
-from models.dental_model import DentalModel 
+from models.anomalies import DentalModel 
 
 # 1. Initialize the model with your .pt file
 model_path = "weights/best.pt"
