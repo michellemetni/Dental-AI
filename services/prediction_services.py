@@ -1,6 +1,6 @@
 #this file converts to API format and calls the model's predict function
 
-from models.anomalies import DentalModel
+from models.prediction import DentalModel
 from PIL import Image
 from schemas.prediction_schemas import PredictionResponse, Detection
 from typing import List
