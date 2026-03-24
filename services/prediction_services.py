@@ -29,7 +29,7 @@ def generate_overlay_data(image_path: str) -> OverlayResponse:
 
     detections = []
     for idx, det in enumerate(raw_results["detections"]):
-        det_with_id = OverlayDetection(id=idx, **det)
+        det_with_id = OverlayDetection(anomaly_id=idx, **det)
         detections.append(det_with_id)
 
     image_filename = os.path.basename(image_path)

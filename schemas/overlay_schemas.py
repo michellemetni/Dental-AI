@@ -4,7 +4,7 @@ from typing import List
 from .prediction_schemas import Detection
 
 class OverlayDetection(Detection):
-    id: int
+    anomaly_id: int
 
 class OverlayResponse(BaseModel):
     image_id: str
