@@ -10,3 +10,4 @@ class Detection(BaseModel):
 
 class PredictionResponse(BaseModel):
     detections: List[Detection]
+
