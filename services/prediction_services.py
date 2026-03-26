@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv()
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 
-dental_model = DentalModel("weights/best.pt")
+dental_model = DentalModel()
 
 #to temporarly store uploaded files for now
 UPLOAD_DIR = Path(UPLOAD_DIR)

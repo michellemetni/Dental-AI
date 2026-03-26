@@ -4,11 +4,16 @@ from PIL import Image
 import torch
 from ultralytics import YOLO
 from .base import ModelStrategy #abstract class
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # loads .env
+MODEL_PATH = os.getenv("MODEL_PATH")
 
 class DentalModel(ModelStrategy, ABC):
 
-    def __init__(self, model_path: str):
-        self.model = YOLO(model_path)
+    def __init__(self):
+        self.model = YOLO(MODEL_PATH)
         self.model.eval() 
 
         self.class_names = {0: "Caries", 1: "Crown", 2: "Filling", 
