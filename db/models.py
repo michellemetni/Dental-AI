@@ -1,3 +1,6 @@
+from datetime import datetime
+from xmlrpc.client import DateTime
+
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -26,8 +29,7 @@ class AIAnomaly(Base):
     bbox = Column(JSON)
     mask = Column(JSON)
 
-    created_at = Column(String)
-
+    created_at = Column(String)  
 
 class Annotation(Base):
     __tablename__ = "annotations"

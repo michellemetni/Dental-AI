@@ -1,3 +1,5 @@
+import traceback
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from dotenv import load_dotenv
 from services.prediction_services import predict_image, generate_overlay_data
@@ -46,4 +48,6 @@ async def overlay_data(file: UploadFile = File(...)):
         return result
 
     except Exception as e:
+        print("❌ FULL ERROR TRACEBACK:")
+        traceback.print_exc() 
         raise HTTPException(status_code=500, detail=str(e))

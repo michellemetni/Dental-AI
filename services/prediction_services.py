@@ -3,6 +3,7 @@ import os
 import uuid
 from models.prediction import DentalModel
 from PIL import Image
+from repositories.anomalies_repository import insert_anomalies_debug
 from schemas.prediction_schemas import PredictionResponse, Detection
 from typing import List
 from schemas.overlay_schemas import OverlayResponse, OverlayDetection
@@ -57,7 +58,13 @@ def save_prediction_to_db(image_id, image_url, detections, dentist_id="1"):
     session = SessionLocal()
     try:
         insert_image(session, image_id, dentist_id, image_url)
+
+        session.flush() 
+
+        insert_anomalies_debug(session, image_id, detections)
+
         session.commit()
+
     except Exception as e:
         session.rollback()
         raise e
