@@ -4,7 +4,7 @@ from xmlrpc.client import DateTime
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from db.database import Base
+from database import Base
 
 
 class Image(Base):
@@ -46,3 +46,15 @@ class Annotation(Base):
     is_valid = Column(Boolean)
 
     created_at = Column(String)
+
+
+class TreatmentPlan(Base):
+    __tablename__ = "treatment_plans"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    class_id = Column(Integer, unique=True, nullable=False)
+    class_name = Column(String, nullable=False)
+
+    title = Column(String, nullable=False) #title for the treamtent plan
+    description = Column(String, nullable=False) #more details about the treatment plan
