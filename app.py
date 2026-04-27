@@ -1,10 +1,12 @@
 import traceback
 
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from dotenv import load_dotenv
 from services.prediction_services import predict_image, generate_overlay_data
 from schemas.prediction_schemas import PredictionResponse
 from schemas.overlay_schemas import OverlayResponse
+from services.treatment_services import fetch_treatment
 import shutil
 from pathlib import Path
 import os
@@ -51,3 +53,12 @@ async def overlay_data(file: UploadFile = File(...)):
         print("❌ FULL ERROR TRACEBACK:")
         traceback.print_exc() 
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/treatment/{class_id}")
+def get_treatment(class_id: int):
+    result = fetch_treatment(class_id)
+
+    if not result:
+        return {"error": "Treatment not found"}
+
+    return result

@@ -4,7 +4,7 @@ from xmlrpc.client import DateTime
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from database import Base
+from db.database import Base
 
 
 class Image(Base):
