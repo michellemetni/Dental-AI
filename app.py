@@ -11,6 +11,11 @@ import shutil
 from pathlib import Path
 import os
 
+from services.report_services import generate_report
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from db.database import get_db
+
 load_dotenv()
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 
@@ -60,5 +65,15 @@ def get_treatment(class_id: int):
 
     if not result:
         return {"error": "Treatment not found"}
+
+    return result
+
+
+@app.post("/generate-report")
+def generate_report_endpoint(payload: dict):
+
+    detections = payload["detections"]
+
+    result = generate_report(detections)
 
     return result
