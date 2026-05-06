@@ -35,30 +35,49 @@ def enrich_anomalies(detections):
 
 
 
-def build_prompt(anomalies):
-    text = ""
-
-    for a in anomalies:
-        text += f"""
-- Anomaly: {a['anomaly']}
-  Confidence: {a['confidence']}%
-  Treatment: {a['treatment']}
-"""
+def build_prompt(anomalies, image_url):
+    text = "\n".join([
+        f"- {a['anomaly']} (confidence: {round(a['confidence'], 2)}): {a['treatment']}"
+        for a in anomalies
+    ])
 
     return f"""
 You are a dental radiology assistant.
 
-Based on the following X-ray analysis:
+Analyze the following detected anomalies from a dental X-ray:
 
 {text}
 
-Write a structured medical report with:
+The annotated X-ray image is available at:
+{image_url}
+but replace uploads with outputs in the URL. 
 
-1. Findings
-2. Diagnosis
-3. Recommended Treatment Plan
+Generate a report STRICTLY in the following Markdown format:
 
-Be concise and professional.
+<center>
+
+# Dental X-ray Analysis Report 
+
+</center>
+
+![X-ray](here put the image url with the same filename but in outputs folder instead of uploads)
+
+## Diagnosis
+
+(Write a concise diagnosis that includes the detected conditions AND their confidence levels.
+Use professional medical language.)
+
+## Recommended Treatment Plan
+
+(Write a clear and professional treatment plan based on the diagnosis.)
+
+Rules:
+- Follow the exact Markdown structure above
+- Do NOT add extra sections
+- Do NOT include patient information
+- Do NOT mention AI or detection systems
+- Be concise and professional
+- Base everything ONLY on the provided anomalies
 """
 
 
@@ -79,19 +98,20 @@ def call_llama(prompt: str):
     return response.json()["response"]
 
 
-# def generate_report(data):
-#     detections = clean_detections(data["detections"])
-#     enriched = enrich_anomalies(detections)
-#     prompt = build_prompt(enriched)
-#     report = call_llama(prompt)
-#     return {
-#         "anomalies": enriched,
-#         "report": report
-#     }
-
 def generate_report(data):
-    clean_detections = clean_detections(data)
+    clean= clean_detections(data)
+    enriched = enrich_anomalies(clean)
+    prompt = build_prompt(enriched)
+    print("Calling the llama")
+    report = call_llama(prompt)
+    return {
+        "anomalies": enriched,
+        "report": report
+    }
 
-    enriched = enrich_anomalies(clean_detections)
+# def generate_report(data):
+#     clean_detections = clean_detections(data)
 
-    return enriched
+#     enriched = enrich_anomalies(clean_detections)
+
+#     return enriched
