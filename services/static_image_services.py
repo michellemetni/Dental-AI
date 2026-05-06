@@ -41,7 +41,8 @@ def draw_static_image(payload, output_dir="outputs"):
 
     result = cv2.addWeighted(overlay, 0.4, image, 0.6, 0)
 
-    output_path = f"{output_dir}/{uuid.uuid4()}.jpg"
+    image_id = payload.get("image_id", "output")
+    output_path = f"{output_dir}/{image_id}.jpg"
     cv2.imwrite(output_path, result)
 
     return output_path

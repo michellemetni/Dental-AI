@@ -34,12 +34,13 @@ def enrich_anomalies(detections):
     return enriched
 
 
-
-def build_prompt(anomalies, image_url):
+def build_prompt(anomalies, image_id):
     text = "\n".join([
         f"- {a['anomaly']} (confidence: {round(a['confidence'], 2)}): {a['treatment']}"
         for a in anomalies
     ])
+
+    image_path = f"outputs/{image_id}.jpg"
 
     return f"""
 You are a dental radiology assistant.
@@ -47,10 +48,6 @@ You are a dental radiology assistant.
 Analyze the following detected anomalies from a dental X-ray:
 
 {text}
-
-The annotated X-ray image is available at:
-{image_url}
-but replace uploads with outputs in the URL. 
 
 Generate a report STRICTLY in the following Markdown format:
 
@@ -60,16 +57,16 @@ Generate a report STRICTLY in the following Markdown format:
 
 </center>
 
-![X-ray](here put the image url with the same filename but in outputs folder instead of uploads)
+![X-ray]({image_path})
 
 ## Diagnosis
 
-(Write a concise diagnosis that includes the detected conditions AND their confidence levels.
-Use professional medical language.)
+Write a concise diagnosis that includes the detected conditions AND their confidence levels.
+Use professional medical language.
 
 ## Recommended Treatment Plan
 
-(Write a clear and professional treatment plan based on the diagnosis.)
+Write a clear and professional treatment plan based on the diagnosis.
 
 Rules:
 - Follow the exact Markdown structure above
@@ -98,20 +95,13 @@ def call_llama(prompt: str):
     return response.json()["response"]
 
 
-def generate_report(data):
+def generate_report(data, image_id):
     clean= clean_detections(data)
     enriched = enrich_anomalies(clean)
-    prompt = build_prompt(enriched)
+    prompt = build_prompt(enriched,image_id)
     print("Calling the llama")
     report = call_llama(prompt)
     return {
         "anomalies": enriched,
         "report": report
     }
-
-# def generate_report(data):
-#     clean_detections = clean_detections(data)
-
-#     enriched = enrich_anomalies(clean_detections)
-
-#     return enriched

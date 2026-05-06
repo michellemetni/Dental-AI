@@ -75,8 +75,8 @@ def get_treatment(class_id: int):
 def generate_report_endpoint(payload: dict):
 
     detections = payload["detections"]
-
-    result = generate_report(detections)
+    image_id = payload["image_id"]
+    result = generate_report(detections, image_id)
 
     return result
 
