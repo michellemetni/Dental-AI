@@ -111,7 +111,7 @@ def generate_report(payload):
 
     return {
         "title": "Dental X-ray Analysis Report",
-        "image_url": f"outputs/{image_id}.jpg",
+        "image_url": f"http://127.0.0.1:8000/outputs/{image_id}.jpg",
         "diagnosis": diagnosis,
         "treatment_plan": treatment_plan
     }

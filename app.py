@@ -20,6 +20,8 @@ from db.database import get_db
 
 from fastapi.middleware.cors import CORSMiddleware 
 
+from fastapi.staticfiles import StaticFiles
+
 load_dotenv()
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 
@@ -36,6 +38,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
     )
+
+# this is to let the outputs folder be accessible to the frontend, so that the generated static images can be displayed
+app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
 @app.post("/predict", response_model=PredictionResponse)
 async def predict(file: UploadFile = File(...)):
@@ -79,16 +84,6 @@ def get_treatment(class_id: int):
         return {"error": "Treatment not found"}
 
     return result
-
-
-# @app.post("/generate-report")
-# def generate_report_endpoint(payload: dict):
-
-#     detections = payload["detections"]
-#     image_id = payload["image_id"]
-#     result = generate_report(detections, image_id)
-
-#     return result
 
 @app.post("/generate-report")
 def generate_report_endpoint(payload: dict):
