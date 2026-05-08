@@ -81,12 +81,19 @@ def get_treatment(class_id: int):
     return result
 
 
+# @app.post("/generate-report")
+# def generate_report_endpoint(payload: dict):
+
+#     detections = payload["detections"]
+#     image_id = payload["image_id"]
+#     result = generate_report(detections, image_id)
+
+#     return result
+
 @app.post("/generate-report")
 def generate_report_endpoint(payload: dict):
 
-    detections = payload["detections"]
-    image_id = payload["image_id"]
-    result = generate_report(detections, image_id)
+    result = generate_report(payload)
 
     return result
 

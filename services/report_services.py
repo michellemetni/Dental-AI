@@ -3,6 +3,7 @@
 
 import requests
 from services.treatment_services import fetch_treatment
+from services.static_image_services import draw_static_image
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL = "llama3"
@@ -34,13 +35,11 @@ def enrich_anomalies(detections):
     return enriched
 
 
-def build_prompt(anomalies, image_id):
+def build_prompt(anomalies):
     text = "\n".join([
         f"- {a['anomaly']} (confidence: {round(a['confidence'], 2)}): {a['treatment']}"
         for a in anomalies
     ])
-
-    image_path = f"outputs/{image_id}.jpg"
 
     return f"""
 You are a dental radiology assistant.
@@ -49,34 +48,30 @@ Analyze the following detected anomalies from a dental X-ray:
 
 {text}
 
-Generate a report STRICTLY in the following Markdown format:
+Generate ONLY:
 
-<center>
+Diagnosis:
+(write a concise professional diagnosis including confidence levels)
 
-# Dental X-ray Analysis Report 
-
-</center>
-
-![X-ray]({image_path})
-
-## Diagnosis
-
-Write a concise diagnosis that includes the detected conditions AND their confidence levels.
-Use professional medical language.
-
-## Recommended Treatment Plan
-
-Write a clear and professional treatment plan based on the diagnosis.
+Treatment Plan:
+(write a concise professional treatment recommendation)
 
 Rules:
-- Follow the exact Markdown structure above
-- Do NOT add extra sections
-- Do NOT include patient information
-- Do NOT mention AI or detection systems
-- Be concise and professional
+- Do NOT add titles
+- Do NOT add bullet points
+- Do NOT mention AI
+- Be concise and professional  
 - Base everything ONLY on the provided anomalies
+- Do NOT use first-person language such as "I", "we", or "our"
 """
+def parse_report(response: str):
+    parts = response.split("Treatment Plan:")
 
+    diagnosis = parts[0].replace("Diagnosis:", "").strip()
+
+    treatment_plan = parts[1].strip() if len(parts) > 1 else ""
+
+    return diagnosis, treatment_plan
 
 def call_llama(prompt: str):
     response = requests.post(
@@ -95,13 +90,28 @@ def call_llama(prompt: str):
     return response.json()["response"]
 
 
-def generate_report(data, image_id):
-    clean= clean_detections(data)
+def generate_report(payload):
+
+    draw_static_image(payload)
+
+    detections = payload["detections"]
+    image_id = payload["image_id"]
+
+    clean = clean_detections(detections)
+
     enriched = enrich_anomalies(clean)
-    prompt = build_prompt(enriched,image_id)
-    print("Calling the llama")
-    report = call_llama(prompt)
+
+    prompt = build_prompt(enriched)
+
+    print("Calling llama")
+
+    response = call_llama(prompt)
+
+    diagnosis, treatment_plan = parse_report(response)
+
     return {
-        "anomalies": enriched,
-        "report": report
+        "title": "Dental X-ray Analysis Report",
+        "image_url": f"outputs/{image_id}.jpg",
+        "diagnosis": diagnosis,
+        "treatment_plan": treatment_plan
     }
