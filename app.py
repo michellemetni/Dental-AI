@@ -18,6 +18,8 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 from db.database import get_db
 
+from fastapi.middleware.cors import CORSMiddleware 
+
 load_dotenv()
 UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 
@@ -26,6 +28,14 @@ app = FastAPI(title="Dental X-ray Detection API")
 #to temporarly store uploaded files for now
 UPLOAD_DIR = Path(UPLOAD_DIR)
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+#this is added to permit the backend to talk with frontend
+app.add_middleware(
+    CORSMiddleware, allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    )
 
 @app.post("/predict", response_model=PredictionResponse)
 async def predict(file: UploadFile = File(...)):

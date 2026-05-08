@@ -28,6 +28,8 @@ class DentalModel(ModelStrategy, ABC):
                             27: "Wire", 28: "Cyst", 29: "Root resorption", 30: "Primary teeth"
             }
 
+        # self.class_names = {0: "Deep Caries", 1: "Caries", 2: "Impacted Tooth", 3: "Periapical Lesion"}
+
     def postprocess(self, results):
         detections = []
 
