@@ -39,7 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
     )
 
-# this is to let the outputs folder be accessible to the frontend, so that the generated static images can be displayed
+# this is to let the outputs folder be accessible to the frontend
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
 @app.post("/predict", response_model=PredictionResponse)
