@@ -1,9 +1,13 @@
 # take detections , fetches treatment plan from db, merge detections and treatment,
 # builds a good prompt, call ollama,  return a structured result.
 
+from uuid import UUID
+
 import requests
+from db.database import SessionLocal
 from services.treatment_services import fetch_treatment
 from services.static_image_services import draw_static_image
+from repositories.analysis_repo import get_analysis_by_id
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL = "llama3"
@@ -89,29 +93,65 @@ def call_llama(prompt: str):
     response.raise_for_status()
     return response.json()["response"]
 
+def generate_report(image_id: str):
 
-def generate_report(payload):
+    print("Generating report for image_id:", image_id)
 
-    draw_static_image(payload)
+    image_id = UUID(image_id)
 
-    detections = payload["detections"]
-    image_id = payload["image_id"]
+    # 1. create DB session INSIDE service
+    db = SessionLocal()
 
-    clean = clean_detections(detections)
+    try:
+        # 2. fetch detections
+        records = get_analysis_by_id(db, image_id)
 
-    enriched = enrich_anomalies(clean)
+        if not records:
+            raise ValueError("No analysis found for this image")
 
-    prompt = build_prompt(enriched)
+        # 3. build detections
+        detections = [
+            {
+                "class_id": r.class_id,
+                "class_name": r.class_name,
+                "confidence": r.confidence,
+                "bbox": r.bbox,
+                "mask": r.mask
+            }
+            for r in records
+        ]
 
-    print("Calling llama")
+        # 4. get image path (via relationship OR query)
+        image_url = records[0].image.image_url  # adjust if needed
 
-    response = call_llama(prompt)
+        draw_payload = {
+            "image_url": image_url,
+            "detections": detections,
+            "image_id": str(image_id)
+        }
 
-    diagnosis, treatment_plan = parse_report(response)
+        # 5. draw image
+        output_path = draw_static_image(
+            image_path=image_url,
+            detections=detections,
+            image_id=image_id
+        )
 
-    return {
-        "title": "Dental X-ray Analysis Report",
-        "image_url": f"http://127.0.0.1:8000/outputs/{image_id}.jpg",
-        "diagnosis": diagnosis,
-        "treatment_plan": treatment_plan
-    }
+        # 6. LLM pipeline
+        clean = clean_detections(detections)
+        enriched = enrich_anomalies(clean)
+
+        prompt = build_prompt(enriched)
+        response = call_llama(prompt)
+
+        diagnosis, treatment_plan = parse_report(response)
+
+        return {
+            "title": "Dental X-ray Analysis Report",
+            "image_url": f"/outputs/{image_id}.jpg",
+            "diagnosis": diagnosis,
+            "treatment_plan": treatment_plan
+        }
+
+    finally:
+        db.close()

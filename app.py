@@ -1,4 +1,5 @@
 import traceback
+from unittest import result
 
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -7,6 +8,7 @@ from services.prediction_services import predict_image, generate_overlay_data
 from schemas.prediction_schemas import PredictionResponse
 from schemas.overlay_schemas import OverlayResponse
 from services.treatment_services import fetch_treatment
+from schemas.report_schemas import ReportRequest
 from fastapi.responses import FileResponse
 from services.static_image_services import draw_static_image
 import shutil
@@ -86,11 +88,10 @@ def get_treatment(class_id: int):
     return result
 
 @app.post("/generate-report")
-def generate_report_endpoint(payload: dict):
-
-    result = generate_report(payload)
-
+def generate_report_endpoint(payload: ReportRequest):
+    result = generate_report(payload.image_id)
     return result
+
 
 @app.post("/get-static-image")
 def get_static_image(payload: dict):

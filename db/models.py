@@ -1,5 +1,6 @@
 from datetime import datetime
 from xmlrpc.client import DateTime
+from sqlalchemy.orm import relationship
 
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
@@ -30,6 +31,8 @@ class AIAnomaly(Base):
     mask = Column(JSON)
 
     created_at = Column(String)  
+
+    image = relationship("Image", backref="anomalies")
 
 class Annotation(Base):
     __tablename__ = "annotations"
