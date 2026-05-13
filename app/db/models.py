@@ -34,6 +34,7 @@ class AIAnomaly(Base):
 
     image = relationship("Image", backref="anomalies")
 
+
 class Annotation(Base):
     __tablename__ = "annotations"
 
@@ -42,6 +43,7 @@ class Annotation(Base):
 
     class_id = Column(Integer)
     class_name = Column(String)
+    confidence = Column(Float, nullable=True)  # ← add this
 
     bbox = Column(JSON)
     mask = Column(JSON)
@@ -49,7 +51,7 @@ class Annotation(Base):
     is_valid = Column(Boolean)
 
     created_at = Column(String)
-
+    
 
 class TreatmentPlan(Base):
     __tablename__ = "treatment_plans"

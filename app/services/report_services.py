@@ -41,7 +41,7 @@ def enrich_anomalies(detections):
 
 def build_prompt(anomalies):
     text = "\n".join([
-        f"- {a['anomaly']} (confidence: {round(a['confidence'], 2)}): {a['treatment']}"
+        f"- {a['anomaly']}" + (f" (confidence: {round(a['confidence'], 2)})" if a.get('confidence') is not None else "") + f": {a['treatment']}"
         for a in anomalies
     ])
 
@@ -55,7 +55,7 @@ Analyze the following detected anomalies from a dental X-ray:
 Generate ONLY:
 
 Diagnosis:
-(write a concise professional diagnosis including confidence levels)
+(write a concise professional diagnosis including confidence levels where available)
 
 Treatment Plan:
 (write a concise professional treatment recommendation)
@@ -68,6 +68,8 @@ Rules:
 - Base everything ONLY on the provided anomalies
 - Do NOT use first-person language such as "I", "we", or "our"
 """
+
+
 def parse_report(response: str):
     parts = response.split("Treatment Plan:")
 
@@ -122,7 +124,9 @@ def generate_report(image_id: str):
         ]
 
         # 4. get image path (via relationship OR query)
-        image_url = records[0].image.image_url  # adjust if needed
+        from db.models import Image
+        img = db.query(Image).filter(Image.id == image_id).first()
+        image_url = img.image_url
 
         draw_payload = {
             "image_url": image_url,

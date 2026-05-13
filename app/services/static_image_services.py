@@ -2,6 +2,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+
 def draw_static_image(image_path, detections, image_id, output_dir="outputs"):
     Path(output_dir).mkdir(exist_ok=True)
 
@@ -21,9 +22,10 @@ def draw_static_image(image_path, detections, image_id, output_dir="outputs"):
         # draw contour border
         cv2.polylines(image, [mask], True, (0, 0, 255), 2)
 
-        # label
+        # label — guard against None confidence
         x, y = mask[0]
-        label = f"{d['class_name']} ({round(d['confidence'], 2)})"
+        conf = d.get("confidence")
+        label = f"{d['class_name']} ({round(conf, 2)})" if conf is not None else d['class_name']
 
         cv2.putText(
             image,

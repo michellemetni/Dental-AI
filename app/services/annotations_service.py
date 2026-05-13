@@ -14,6 +14,7 @@ def save_annotations_service(db, image_id, annotations):
             image_id=image_id,
             class_id=a.class_id,
             class_name=a.class_name,
+            confidence=a.confidence,  # ← add this
             bbox=a.bbox,
             mask=a.mask,
             is_valid=a.is_valid
