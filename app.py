@@ -4,12 +4,14 @@ from unittest import result
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from dotenv import load_dotenv
+from services.annotations_service import save_annotations_service
 from services.prediction_services import predict_image, generate_overlay_data
 from schemas.prediction_schemas import PredictionResponse
 from schemas.overlay_schemas import OverlayResponse
 from services.treatment_services import fetch_treatment
 from schemas.report_schemas import ReportRequest
 from fastapi.responses import FileResponse
+from schemas.annotations_schemas import AnnotationSaveRequest
 from services.static_image_services import draw_static_image
 import shutil
 from pathlib import Path
@@ -99,3 +101,14 @@ def get_static_image(payload: dict):
     output_path = draw_static_image(payload)
 
     return FileResponse(output_path, media_type="image/jpeg")
+
+@app.post("/save-annotations")
+def save_annotations(payload: AnnotationSaveRequest, db: Session = Depends(get_db)):
+
+    result = save_annotations_service(
+        db=db,
+        image_id=payload.image_id,
+        annotations=payload.annotations
+    )
+
+    return result
