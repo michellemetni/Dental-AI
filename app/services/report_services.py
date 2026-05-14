@@ -67,6 +67,7 @@ Rules:
 - Be concise and professional  
 - Base everything ONLY on the provided anomalies
 - Do NOT use first-person language such as "I", "we", or "our"
+- if Confidence level is NUll it means its the dentist's annotation, so treat it as it is there.
 """
 
 
