@@ -10,7 +10,7 @@ from services.static_image_services import draw_static_image
 from repositories.analysis_repo import get_analysis_by_id
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "llama3"
+MODEL = "llama3.2:3b"
 
 def clean_detections(detections):
     cleaned = []
@@ -30,6 +30,11 @@ def enrich_anomalies(detections):
     for d in detections:
         treatment = fetch_treatment(d["class_id"])
 
+        # If no treatment found (manual annotation or unknown class),
+        # tell Llama to use its clinical knowledge
+        if not treatment:
+            treatment = f"No predefined treatment available for '{d['class_name']}'. Use clinical knowledge to recommend appropriate treatment based on the finding name."
+
         enriched.append({
             "anomaly": d["class_name"],
             "confidence": d["confidence"],
@@ -38,40 +43,61 @@ def enrich_anomalies(detections):
 
     return enriched
 
-
 def build_prompt(anomalies):
     text = "\n".join([
-        f"- {a['anomaly']}" + (f" (confidence: {round(a['confidence'], 2)})" if a.get('confidence') is not None else "") + f": {a['treatment']}"
+        f"- {a['anomaly']}" + (f" (confidence: {round(a['confidence'], 2)})" if a.get('confidence') is not None else " (confirmed by dentist)") + f": {a['treatment']}"
         for a in anomalies
     ])
 
-    return f"""
-You are a dental radiology assistant.
+    total = len(anomalies)
+    manual = [a for a in anomalies if a.get('confidence') is None]
+    ai_detected = [a for a in anomalies if a.get('confidence') is not None]
 
-Analyze the following detected anomalies from a dental X-ray:
+    return f"""
+You are an experienced dental radiologist writing a formal clinical report.
+
+The following {total} anomalies have been CONFIRMED and ARE PRESENT in this dental X-ray ({len(ai_detected)} detected by AI analysis, {len(manual)} confirmed by the examining dentist):
 
 {text}
 
-Generate ONLY:
+Rules:
+- Do NOT add titles or headings of any kind
+- Do NOT use markdown formatting like **, *, #, or any other symbols
+- Do NOT add bullet points or numbered lists
+- Do NOT repeat the section names "Diagnosis:" or "Treatment Plan:" in your response
+- Do NOT mention AI, confidence levels, or percentages in the report text
+- Do NOT use first-person ("I", "we", or "our")
+- Write in plain paragraph text only
+- Every finding listed IS present — NEVER say anything is not detected
+- Items marked "confirmed by dentist" are clinically confirmed findings
+- Write in formal clinical language
+- Do NOT include any preamble, introduction, or phrases like "Here is the report:", "Here is the diagnosis:", "Based on the findings:" or any similar opening phrases
+- Start the Diagnosis section directly with the clinical content
+- Start the Treatment Plan section directly with the clinical content
+
+Generate the following two sections with DETAILED, SPECIFIC clinical writing. Each section must be at least 3-4 sentences long:
 
 Diagnosis:
-(write a concise professional diagnosis including confidence levels where available)
+Write a thorough clinical diagnosis that mentions each type of anomaly found, their clinical significance, their likely location or distribution across the dental arch, and any relationships between findings. Be specific and detailed.
 
 Treatment Plan:
-(write a concise professional treatment recommendation)
-
-Rules:
-- Do NOT add titles
-- Do NOT add bullet points
-- Do NOT mention AI
-- Be concise and professional  
-- Base everything ONLY on the provided anomalies
-- Do NOT use first-person language such as "I", "we", or "our"
-- if Confidence level is NUll it means its the dentist's annotation, so treat it as it is there.
+Write a comprehensive treatment plan that addresses each confirmed finding with specific clinical recommendations, prioritization of urgent treatments, and follow-up care. Be specific about what procedures are needed and why.
 """
 
 
 def parse_report(response: str):
+    preambles = [
+        "here is the report:", "here is the diagnosis:", "here is the treatment plan:",
+        "based on the findings,", "based on the radiographic findings,",
+        "here is a concise", "the following is", "below is"
+    ]
+    
+    response_lower = response.lower()
+    for p in preambles:
+        if response_lower.startswith(p):
+            response = response[len(p):].strip()
+            break
+    
     parts = response.split("Treatment Plan:")
 
     diagnosis = parts[0].replace("Diagnosis:", "").strip()
@@ -88,7 +114,8 @@ def call_llama(prompt: str):
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.3
+                "temperature": 0.3,
+                "num_predict": 400,
             }
         }
     )

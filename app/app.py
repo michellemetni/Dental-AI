@@ -46,23 +46,6 @@ app.add_middleware(
 # this is to let the outputs folder be accessible to the frontend
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
-@app.post("/predict", response_model=PredictionResponse)
-async def predict(file: UploadFile = File(...)):
-    file_path = UPLOAD_DIR / file.filename
-
-    try:
-        # Save uploaded file
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        # Call service layer
-        result = predict_image(str(file_path))
-
-        return result
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/overlay-data", response_model=OverlayResponse)
 async def overlay_data(file: UploadFile = File(...)):
     file_path = UPLOAD_DIR / file.filename
