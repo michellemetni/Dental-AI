@@ -30,8 +30,6 @@ def enrich_anomalies(detections):
     for d in detections:
         treatment = fetch_treatment(d["class_id"])
 
-        # If no treatment found (manual annotation or unknown class),
-        # tell Llama to use its clinical knowledge
         if not treatment:
             treatment = f"No predefined treatment available for '{d['class_name']}'. Use clinical knowledge to recommend appropriate treatment based on the finding name."
 
@@ -44,68 +42,65 @@ def enrich_anomalies(detections):
     return enriched
 
 def build_prompt(anomalies):
-    text = "\n".join([
-        f"- {a['anomaly']}" + (f" (confidence: {round(a['confidence'], 2)})" if a.get('confidence') is not None else " (confirmed by dentist)") + f": {a['treatment']}"
-        for a in anomalies
-    ])
+    # group anomalies by type to avoid repeating
+    from collections import Counter
+    counts = Counter(a["anomaly"] for a in anomalies)
+    summary_lines = []
+    seen = set()
+    for a in anomalies:
+        name = a["anomaly"]
+        if name not in seen:
+            seen.add(name)
+            count = counts[name]
+            label = f"{count}x {name}" if count > 1 else name
+            confirmed = " (confirmed by dentist)" if a.get("confidence") is None else ""
+            summary_lines.append(f"- {label}{confirmed}: {a['treatment']}")
 
-    total = len(anomalies)
-    manual = [a for a in anomalies if a.get('confidence') is None]
-    ai_detected = [a for a in anomalies if a.get('confidence') is not None]
+    text = "\n".join(summary_lines)
+    total_types = len(seen)
 
-    return f"""
-You are an experienced dental radiologist writing a formal clinical report.
+    return f"""You are a dental radiologist. Write a short clinical report with exactly two sections.
 
-The following {total} anomalies have been CONFIRMED and ARE PRESENT in this dental X-ray ({len(ai_detected)} detected by AI analysis, {len(manual)} confirmed by the examining dentist):
-
+Confirmed findings ({total_types} types):
 {text}
 
-Rules:
-- Do NOT add titles or headings of any kind
-- Do NOT use markdown formatting like **, *, #, or any other symbols
-- Do NOT add bullet points or numbered lists
-- Do NOT repeat the section names "Diagnosis:" or "Treatment Plan:" in your response
-- Do NOT mention AI, confidence levels, or percentages in the report text
-- Do NOT use first-person ("I", "we", or "our")
-- Write in plain paragraph text only
-- Every finding listed IS present — NEVER say anything is not detected
-- Items marked "confirmed by dentist" are clinically confirmed findings
-- Write in formal clinical language
-- Do NOT include any preamble, introduction, or phrases like "Here is the report:", "Here is the diagnosis:", "Based on the findings:" or any similar opening phrases
-- Start the Diagnosis section directly with the clinical content
-- Start the Treatment Plan section directly with the clinical content
-
-Generate the following two sections with DETAILED, SPECIFIC clinical writing. Each section must be at least 3-4 sentences long:
+STRICT RULES:
+- Write ONLY two sections: Diagnosis and Treatment Plan
+- Each section is exactly 3 sentences
+- Do NOT use markdown, bullet points, or bold text
+- Do NOT mention confidence levels or AI
+- Do NOT use first person
+- Do NOT add any preamble or intro text
+- Use formal clinical language
+- In the Treatment Plan section, address each finding type separately with its specific recommended treatment
+- Do NOT use a global treatment plan — each anomaly type must have its own treatment sentence
 
 Diagnosis:
-Write a thorough clinical diagnosis that mentions each type of anomaly found, their clinical significance, their likely location or distribution across the dental arch, and any relationships between findings. Be specific and detailed.
+[Write exactly 3 sentences summarizing all findings and their overall clinical significance]
 
 Treatment Plan:
-Write a comprehensive treatment plan that addresses each confirmed finding with specific clinical recommendations, prioritization of urgent treatments, and follow-up care. Be specific about what procedures are needed and why.
-"""
+[For each anomaly type found, write one sentence describing the specific treatment. Example: "The fillings require... The impacted tooth requires... The caries require..."]"""
 
 
 def parse_report(response: str):
-    preambles = [
-        "here is the report:", "here is the diagnosis:", "here is the treatment plan:",
-        "based on the findings,", "based on the radiographic findings,",
-        "here is a concise", "the following is", "below is"
-    ]
-    
-    response_lower = response.lower()
-    for p in preambles:
-        if response_lower.startswith(p):
-            response = response[len(p):].strip()
-            break
-    
-    parts = response.split("Treatment Plan:")
+    import re
 
-    diagnosis = parts[0].replace("Diagnosis:", "").strip()
+    # split on Treatment Plan header
+    parts = re.split(r'(?i)\n\s*treatment\s*plan\s*:?\s*\n', response)
+
+    if len(parts) < 2:
+        # fallback — try splitting without newline requirement
+        parts = re.split(r'(?i)treatment\s*plan\s*:?', response)
+
+    diagnosis = parts[0].strip()
+    # remove Diagnosis header if present
+    diagnosis = re.sub(r'(?i)^diagnosis\s*:?\s*\n?', '', diagnosis).strip()
+    diagnosis = re.sub(r'\[.*?\]', '', diagnosis).strip()
 
     treatment_plan = parts[1].strip() if len(parts) > 1 else ""
+    treatment_plan = re.sub(r'\[.*?\]', '', treatment_plan).strip()
 
     return diagnosis, treatment_plan
-
 def call_llama(prompt: str):
     response = requests.post(
         OLLAMA_URL,
@@ -114,14 +109,18 @@ def call_llama(prompt: str):
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.3,
-                "num_predict": 400,
+                "temperature": 0.2,
+                "num_predict": 600,
             }
         }
     )
 
     response.raise_for_status()
-    return response.json()["response"]
+    raw = response.json()["response"]
+    print("=== RAW LLAMA RESPONSE ===")
+    print(raw)
+    print("=== END RAW RESPONSE ===")
+    return raw
 
 def generate_report(image_id: str):
 
@@ -129,17 +128,14 @@ def generate_report(image_id: str):
 
     image_id = UUID(image_id)
 
-    # 1. create DB session INSIDE service
     db = SessionLocal()
 
     try:
-        # 2. fetch detections
         records = get_analysis_by_id(db, image_id)
 
         if not records:
             raise ValueError("No analysis found for this image")
 
-        # 3. build detections
         detections = [
             {
                 "class_id": r.class_id,
@@ -151,25 +147,18 @@ def generate_report(image_id: str):
             for r in records
         ]
 
-        # 4. get image path (via relationship OR query)
         from db.models import Image
         img = db.query(Image).filter(Image.id == image_id).first()
         image_url = img.image_url
 
-        draw_payload = {
-            "image_url": image_url,
-            "detections": detections,
-            "image_id": str(image_id)
-        }
-
-        # 5. draw image
+        # draw image
         output_path = draw_static_image(
             image_path=image_url,
             detections=detections,
             image_id=image_id
         )
 
-        # 6. LLM pipeline
+        # LLM pipeline
         clean = clean_detections(detections)
         enriched = enrich_anomalies(clean)
 
