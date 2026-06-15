@@ -1,0 +1,6 @@
+*.pt
+weights/
+uploads/
+.env
+outputs/
+*.pyc
